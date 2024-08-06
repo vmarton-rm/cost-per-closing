@@ -1,151 +1,148 @@
+import datetime
 import streamlit as st
+import numpy as np
 import pandas as pd
-import math
-from pathlib import Path
-
-# Set the title and favicon that appear in the Browser's tab bar.
-st.set_page_config(
-    page_title='GDP dashboard',
-    page_icon=':earth_americas:', # This is an emoji shortcode. Could be a URL too.
-)
-
-# -----------------------------------------------------------------------------
-# Declare some useful functions.
-
-@st.cache_data
-def get_gdp_data():
-    """Grab GDP data from a CSV file.
-
-    This uses caching to avoid having to read the file every time. If we were
-    reading from an HTTP endpoint instead of a file, it's a good idea to set
-    a maximum age to the cache with the TTL argument: @st.cache_data(ttl='1d')
-    """
-
-    # Instead of a CSV on disk, you could read from an HTTP endpoint here too.
-    DATA_FILENAME = Path(__file__).parent/'data/gdp_data.csv'
-    raw_gdp_df = pd.read_csv(DATA_FILENAME)
-
-    MIN_YEAR = 1960
-    MAX_YEAR = 2022
-
-    # The data above has columns like:
-    # - Country Name
-    # - Country Code
-    # - [Stuff I don't care about]
-    # - GDP for 1960
-    # - GDP for 1961
-    # - GDP for 1962
-    # - ...
-    # - GDP for 2022
-    #
-    # ...but I want this instead:
-    # - Country Name
-    # - Country Code
-    # - Year
-    # - GDP
-    #
-    # So let's pivot all those year-columns into two: Year and GDP
-    gdp_df = raw_gdp_df.melt(
-        ['Country Code'],
-        [str(x) for x in range(MIN_YEAR, MAX_YEAR + 1)],
-        'Year',
-        'GDP',
-    )
-
-    # Convert years from string to integers
-    gdp_df['Year'] = pd.to_numeric(gdp_df['Year'])
-
-    return gdp_df
-
-gdp_df = get_gdp_data()
-
-# -----------------------------------------------------------------------------
-# Draw the actual page
-
-# Set the title that appears at the top of the page.
-'''
-# :earth_americas: GDP dashboard
-
-Browse GDP data from the [World Bank Open Data](https://data.worldbank.org/) website. As you'll
-notice, the data only goes to 2022 right now, and datapoints for certain years are often missing.
-But it's otherwise a great (and did I mention _free_?) source of data.
-'''
-
-# Add some spacing
-''
-''
-
-min_value = gdp_df['Year'].min()
-max_value = gdp_df['Year'].max()
-
-from_year, to_year = st.slider(
-    'Which years are you interested in?',
-    min_value=min_value,
-    max_value=max_value,
-    value=[min_value, max_value])
-
-countries = gdp_df['Country Code'].unique()
-
-if not len(countries):
-    st.warning("Select at least one country")
-
-selected_countries = st.multiselect(
-    'Which countries would you like to view?',
-    countries,
-    ['DEU', 'FRA', 'GBR', 'BRA', 'MEX', 'JPN'])
-
-''
-''
-''
-
-# Filter the data
-filtered_gdp_df = gdp_df[
-    (gdp_df['Country Code'].isin(selected_countries))
-    & (gdp_df['Year'] <= to_year)
-    & (from_year <= gdp_df['Year'])
-]
-
-st.header('GDP over time', divider='gray')
-
-''
-
-st.line_chart(
-    filtered_gdp_df,
-    x='Year',
-    y='GDP',
-    color='Country Code',
-)
-
-''
-''
+from snowflake.snowpark.context import get_active_session
+import plotly.express as px
+import plotly.graph_objects as go
+import altair as alt
+import time
 
 
-first_year = gdp_df[gdp_df['Year'] == from_year]
-last_year = gdp_df[gdp_df['Year'] == to_year]
+# Write directly to the app
+st.title("Cost Per Closing")
 
-st.header(f'GDP in {to_year}', divider='gray')
 
-''
+session = get_active_session()
 
-cols = st.columns(4)
+# Use an interactive slider to get user input
 
-for i, country in enumerate(selected_countries):
-    col = cols[i % len(cols)]
+months = {
+    "January": "01",
+    "February": "02",
+    "March": "03",
+    "April": "04",
+    "May": "05",
+    "June": "06",
+    "July": "07",
+    "August": "08",
+    "September": "09",
+    "October": "10",
+    "November": "11",
+    "December": "12"
+}
 
-    with col:
-        first_gdp = first_year[gdp_df['Country Code'] == country]['GDP'].iat[0] / 1000000000
-        last_gdp = last_year[gdp_df['Country Code'] == country]['GDP'].iat[0] / 1000000000
+sql_DT = f'select * from PRODUCTION.ANALYTICAL.LEAD_COST_BREAKDOWN'
 
-        if math.isnan(first_gdp):
-            growth = 'n/a'
-            delta_color = 'off'
-        else:
-            growth = f'{last_gdp / first_gdp:,.2f}x'
-            delta_color = 'normal'
+data_DT = session.sql(sql_DT).to_pandas().sort_values('Leads', ascending=False)
 
-        st.metric(
-            label=f'{country} GDP',
-            value=f'{last_gdp:,.0f}B',
-            delta=growth,
-            delta_color=delta_color
+# Create the select boxes
+selected_year = st.number_input("Select year", min_value=2020, max_value=2030, value=2024, step=1)
+selected_month = st.selectbox("Select month", options=list(months.keys()))
+
+# Convert selected month to numerical value
+selected_month_num = months[selected_month]
+
+# Assuming the date column is named 'YearMonth' and has the format 'YYYY MM'
+data_DT['year'] = data_DT['YearMonth'].str[:4]
+data_DT['month'] = data_DT['YearMonth'].str[5:7]
+filtered_df = data_DT[(data_DT['year'] == str(selected_year)) & (data_DT['month'] == selected_month_num)]
+
+
+
+## Automate the Bake precentage
+
+SQL_LTC_Bake = f'select * from PRODUCTION.ANALYTICAL.LeadToClose_Bake'
+SQL_LTC_Bake_DT = session.sql(SQL_LTC_Bake).to_pandas()
+
+# Create the selected_date as the first day of the selected month
+selected_date = pd.to_datetime(f"{selected_year}-{months[selected_month]}-01")
+# Calculate the difference between today and the selected date
+days_since = (pd.Timestamp.today() - selected_date).days
+
+
+def get_cumulative_percent(days_since, df):
+  """
+  Gets the cumulative percent based on days since from the provided DataFrame.
+
+  Args:
+    days_since: The number of days since.
+    df: The DataFrame containing the lookup data.
+
+  Returns:
+    The cumulative percent value.
+  """
+
+  # Find the closest value in the DataFrame
+  closest_row = df[df['LEADTOCLOSETTDAYS'] <= days_since].max()
+
+  # Return the cumulative percent for the closest row
+  return closest_row['CUMULATIVE_PERCENT']
+
+
+with st.spinner('Please wait...'):
+    cumulative_percent = get_cumulative_percent(days_since, SQL_LTC_Bake_DT)
+    st.title("Bake %")
+    st.metric(label = 'Bake % is a measure to track how close we are to finishing a cohort month.',
+              label_visibility='visible', value=str(round(cumulative_percent * 100, 2)) + '%')
+
+    layout = go.Layout(
+        xaxis = go.XAxis(
+            title = 'Bake %'),
+        yaxis = go.YAxis(
+            showticklabels=False
         )
+    )
+    progress_figure = go.Figure(layout=layout)
+    progress_figure.add_shape(type='rect', 
+                             x0=0, x1=cumulative_percent*100, y0=0, y1=1,
+                             line=None, fillcolor='LawnGreen')
+    progress_figure.add_shape(type='rect', 
+                             x0=cumulative_percent*100, x1=100, y0=0, y1=1,
+                             line=None, fillcolor='Red')
+    progress_figure.update_xaxes(range=[0,100])
+    progress_figure.update_yaxes(range=[0,1])
+    progress_figure.update_layout(height=50, margin=dict(l=20, r=20, t=20, b=20))
+    st.plotly_chart(progress_figure)    
+    time.sleep(1)
+    
+    # Create a copy of the DataFrame to avoid modifying the original
+    df_to_display = filtered_df.copy()
+    
+    # Remove the 'Customer' column
+    df_to_display = df_to_display.drop(['YearMonth','year','month'], axis=1)
+    
+    st.dataframe(df_to_display.set_index(df_to_display.columns[0]))
+
+lead_sources = session.sql('select distinct "Lead Source" from production.analytical.lead_cost_breakdown').to_pandas()
+st.subheader('Cost per Closing over Time')
+options = sorted(list(x.item() for x in lead_sources.values))
+selected_source = st.selectbox('Select lead source', options=options, index=options.index('LowestRates'))
+
+data_DT['First Day of Month'] = data_DT['year'].str[:] + '-' + data_DT['month'].str[:] + '-01'
+graphed_df = data_DT[data_DT['Lead Source'] == str(selected_source)]#['First Day of Month', 'Cost per Closing']
+today = datetime.datetime.today().strftime('%Y-%m-%d')
+
+fig = px.line(graphed_df, x='First Day of Month', y='Cost per Closing')
+
+last_day = datetime.datetime.today()
+first_day = datetime.datetime.today().replace(day=1)
+graph_days_since = (datetime.datetime.today() - first_day).days
+
+while float(get_cumulative_percent(graph_days_since, SQL_LTC_Bake_DT)) < 0.95:
+    fig.add_shape(type='rect',
+                  x0 = first_day.strftime('%Y-%m-%d'), x1=last_day.strftime('%Y-%m-%d'),
+                  y0=0, y1=graphed_df['Cost per Closing'].max() * 1.05,
+                  line=None, fillcolor="OrangeRed",
+                  opacity=(1 - get_cumulative_percent(graph_days_since, SQL_LTC_Bake_DT)), layer='below')
+    last_day = first_day + datetime.timedelta(days=-1)
+    first_day = last_day.replace(day=1)
+    graph_days_since = (datetime.datetime.today() - first_day).days
+
+fig.update_xaxes(range=['2020-03-01', today])
+fig.update_yaxes(range=[0, graphed_df['Cost per Closing'].max() * 1.05])
+fig.update_layout(showlegend=True, legend=dict(title="Legend Title", traceorder="normal"))
+fig.show()
+st.plotly_chart(figure_or_data=fig, use_container_width=True)
+st.markdown('The shaded regions represent the bake % of the cohort, with full transparency signifying '+
+       '>95% bake.')
