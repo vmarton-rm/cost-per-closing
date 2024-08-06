@@ -1,2 +1,6 @@
 streamlit
+numpy
 pandas
+snowflake
+plotly
+altair
