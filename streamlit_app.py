@@ -12,8 +12,17 @@ import time
 # Write directly to the app
 st.title("Cost Per Closing")
 
+# Connect to Snowflake
+conn = st.connection("snowflake")
 
-session = get_active_session()
+
+# @st.cache_data
+def load_session():
+    session = conn.session()
+    return session
+
+
+session = load_session()
 
 # Use an interactive slider to get user input
 
