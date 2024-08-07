@@ -142,7 +142,7 @@ while float(get_cumulative_percent(graph_days_since, SQL_LTC_Bake_DT)) < 0.95:
     fig.add_shape(type='rect',
                   x0 = first_day.strftime('%Y-%m-%d'), x1=last_day.strftime('%Y-%m-%d'),
                   y0=0, y1=graphed_df['Cost per Closing'].max() * 1.05,
-                  line=None, fillcolor="OrangeRed",
+                  line=None, fillcolor="Red",
                   opacity=(1 - get_cumulative_percent(graph_days_since, SQL_LTC_Bake_DT)), layer='below')
     last_day = first_day + datetime.timedelta(days=-1)
     first_day = last_day.replace(day=1)
