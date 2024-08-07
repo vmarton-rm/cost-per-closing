@@ -43,7 +43,7 @@ months = {
 
 sql_DT = f'select * from PRODUCTION.ANALYTICAL.LEAD_COST_BREAKDOWN'
 
-data_DT = session.sql(sql_DT).to_pandas().sort_values('Leads', ascending=False)
+data_DT = session.sql(sql_DT).to_pandas()
 
 # Create the select boxes
 selected_year = st.number_input("Select year", min_value=2020, max_value=2030, value=2024, step=1)
@@ -55,7 +55,7 @@ selected_month_num = months[selected_month]
 # Assuming the date column is named 'YearMonth' and has the format 'YYYY MM'
 data_DT['year'] = data_DT['YearMonth'].str[:4]
 data_DT['month'] = data_DT['YearMonth'].str[5:7]
-filtered_df = data_DT[(data_DT['year'] == str(selected_year)) & (data_DT['month'] == selected_month_num)]
+filtered_df = data_DT[(data_DT['year'] == str(selected_year)) & (data_DT['month'] == selected_month_num)].sort_values('Leads', ascending=False)
 
 
 
