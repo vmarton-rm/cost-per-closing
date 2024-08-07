@@ -57,6 +57,10 @@ data_DT['year'] = data_DT['YearMonth'].str[:4]
 data_DT['month'] = data_DT['YearMonth'].str[5:7]
 filtered_df = data_DT[(data_DT['year'] == str(selected_year)) & (data_DT['month'] == selected_month_num)].sort_values('Leads', ascending=False)
 
+filtered_df['Cost'] = '$' + filtered_df['Cost'].map('{:,.2f}'.format).replace('nan', ' -')
+filtered_df['Cost per Lead'] = '$' + filtered_df['Cost per Lead'].map('{:,.2f}'.format).replace('nan', ' -')
+filtered_df['Cost per Closing'] = '$' + filtered_df['Cost per Closing'].map('{:,.2f}'.format).replace('nan', ' -')
+filtered_df['Lead to Close (cohort)'] = round(filtered_df['Lead to Close (cohort)'] * 100, 2).astype(str) + '%'
 
 
 ## Automate the Bake precentage
