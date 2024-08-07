@@ -5,4 +5,3 @@ snowflake
 plotly
 altair
 datetime
-time
