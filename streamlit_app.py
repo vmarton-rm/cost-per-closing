@@ -46,7 +46,7 @@ sql_DT = f'select * from PRODUCTION.ANALYTICAL.LEAD_COST_BREAKDOWN'
 data_DT = session.sql(sql_DT).to_pandas()
 
 # Create the select boxes
-selected_year = st.number_input("Select year", min_value=2020, max_value=2030, value=2024, step=1)
+selected_year = st.number_input("Select year", min_value=2020, max_value=2030, value=pd.Timestamp.today().year, step=1)
 selected_month = st.selectbox("Select month", options=list(months.keys()))
 
 # Convert selected month to numerical value
@@ -57,10 +57,10 @@ data_DT['year'] = data_DT['YearMonth'].str[:4]
 data_DT['month'] = data_DT['YearMonth'].str[5:7]
 filtered_df = data_DT[(data_DT['year'] == str(selected_year)) & (data_DT['month'] == selected_month_num)].sort_values('Leads', ascending=False)
 
-filtered_df['Cost'] = '$' + filtered_df['Cost'].map('{:,.2f}'.format).replace('nan', ' -')
-filtered_df['Cost per Lead'] = '$' + filtered_df['Cost per Lead'].map('{:,.2f}'.format).replace('nan', ' -')
-filtered_df['Cost per Closing'] = '$' + filtered_df['Cost per Closing'].map('{:,.2f}'.format).replace('nan', ' -')
-filtered_df['Lead to Close (cohort)'] = round(filtered_df['Lead to Close (cohort)'] * 100, 2).astype(str) + '%'
+filtered_df['Cost ($)'] = round(filtered_df['Cost ($)'])
+filtered_df['Cost per Lead ($)'] = round(filtered_df['Cost per Lead ($)'])
+filtered_df['Cost per Closing ($)'] = round(filtered_df['Cost per Closing ($)'])
+filtered_df['% Lead to Close (cohort)'] = round(filtered_df['% Lead to Close (cohort)'] * 100, 2)
 
 
 ## Automate the Bake precentage
@@ -136,7 +136,7 @@ data_DT['First Day of Month'] = data_DT['year'].str[:] + '-' + data_DT['month'].
 graphed_df = data_DT[data_DT['Lead Source'] == str(selected_source)]#['First Day of Month', 'Cost per Closing']
 today = datetime.datetime.today().strftime('%Y-%m-%d')
 
-fig = px.line(graphed_df, x='First Day of Month', y='Cost per Closing')
+fig = px.line(graphed_df, x='First Day of Month', y='Cost per Closing ($)')
 
 last_day = datetime.datetime.today()
 first_day = datetime.datetime.today().replace(day=1)
@@ -145,7 +145,7 @@ graph_days_since = (datetime.datetime.today() - first_day).days
 while float(get_cumulative_percent(graph_days_since, SQL_LTC_Bake_DT)) < 0.95:
     fig.add_shape(type='rect',
                   x0 = first_day.strftime('%Y-%m-%d'), x1=last_day.strftime('%Y-%m-%d'),
-                  y0=0, y1=graphed_df['Cost per Closing'].max() * 1.05,
+                  y0=0, y1=graphed_df['Cost per Closing ($)'].max() * 1.05,
                   line=None, fillcolor="Red",
                   opacity=(1 - get_cumulative_percent(graph_days_since, SQL_LTC_Bake_DT)), layer='below')
     last_day = first_day + datetime.timedelta(days=-1)
@@ -153,9 +153,11 @@ while float(get_cumulative_percent(graph_days_since, SQL_LTC_Bake_DT)) < 0.95:
     graph_days_since = (datetime.datetime.today() - first_day).days
 
 fig.update_xaxes(range=['2020-03-01', today])
-fig.update_yaxes(range=[0, graphed_df['Cost per Closing'].max() * 1.05])
+fig.update_yaxes(range=[0, graphed_df['Cost per Closing ($)'].max() * 1.05])
 fig.update_layout(showlegend=True, legend=dict(title="Legend Title", traceorder="normal"))
 fig.show()
 st.plotly_chart(figure_or_data=fig, use_container_width=True)
 st.markdown('The shaded regions represent the bake % of the cohort, with full transparency signifying '+
        '>95% bake.')
+
+
