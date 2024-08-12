@@ -69,7 +69,8 @@ SQL_LTC_Bake = f'select * from PRODUCTION.ANALYTICAL.LeadToClose_Bake'
 SQL_LTC_Bake_DT = session.sql(SQL_LTC_Bake).to_pandas()
 
 # Create the selected_date as the first day of the selected month
-selected_date = pd.to_datetime(f"{selected_year}-{months[selected_month]}-01")
+selected_date = pd.to_datetime(f"{selected_year}-{months[selected_month]}-01") + pd.offsets.MonthEnd(0)
+
 # Calculate the difference between today and the selected date
 days_since = (pd.Timestamp.today() - selected_date).days
 
