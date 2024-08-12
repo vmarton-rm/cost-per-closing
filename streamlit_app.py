@@ -59,8 +59,11 @@ filtered_df = data_DT[(data_DT['year'] == str(selected_year)) & (data_DT['month'
 
 filtered_df['Cost ($)'] = round(filtered_df['Cost ($)'])
 filtered_df['Cost per Lead ($)'] = round(filtered_df['Cost per Lead ($)'])
+filtered_df['Cost per Submission ($)'] = round(filtered_df['Cost per Submission ($)'])
 filtered_df['Cost per Closing ($)'] = round(filtered_df['Cost per Closing ($)'])
+filtered_df['Cost per Expected Closing ($)'] = round(filtered_df['Cost per Expected Closing ($)'])
 filtered_df['% Lead to Close (cohort)'] = round(filtered_df['% Lead to Close (cohort)'] * 100, 2)
+filtered_df['% Expected Lead to Close (cohort)'] = round(filtered_df['% Expected Lead to Close (cohort)'] * 100, 2)
 
 
 ## Automate the Bake precentage
@@ -124,20 +127,24 @@ with st.spinner('Please wait...'):
     df_to_display = filtered_df.copy()
     
     # Remove the 'Customer' column
-    df_to_display = df_to_display.drop(['YearMonth','year','month'], axis=1)
+    df_to_display = df_to_display.drop(['YearMonth','year','month', 'Submissions'], axis=1)
     
     st.dataframe(df_to_display.set_index(df_to_display.columns[0]))
 
 lead_sources = session.sql('select distinct "Lead Source" from production.analytical.lead_cost_breakdown').to_pandas()
 st.subheader('Cost per Closing over Time')
+
 options = sorted(list(x.item() for x in lead_sources.values))
 selected_source = st.selectbox('Select lead source', options=options, index=options.index('LowestRates'))
 
-data_DT['First Day of Month'] = data_DT['year'].str[:] + '-' + data_DT['month'].str[:] + '-01'
+st.markdown('The shaded regions represent the bake % of the cohort, with full transparency signifying '+
+   '>95% bake.')
+
+data_DT['Month'] = data_DT['year'].str[:] + '-' + data_DT['month'].str[:] + '-01'
 graphed_df = data_DT[data_DT['Lead Source'] == str(selected_source)]#['First Day of Month', 'Cost per Closing']
 today = datetime.datetime.today().strftime('%Y-%m-%d')
 
-fig = px.line(graphed_df, x='First Day of Month', y='Cost per Closing ($)')
+fig = px.line(graphed_df, x='Month', y='Cost per Closing ($)')
 
 last_day = datetime.datetime.today()
 first_day = datetime.datetime.today().replace(day=1)
@@ -158,7 +165,7 @@ fig.update_yaxes(range=[0, graphed_df['Cost per Closing ($)'].max() * 1.05])
 fig.update_layout(showlegend=True, legend=dict(title="Legend Title", traceorder="normal"))
 fig.show()
 st.plotly_chart(figure_or_data=fig, use_container_width=True)
-st.markdown('The shaded regions represent the bake % of the cohort, with full transparency signifying '+
-       '>95% bake.')
 
-
+# st.subheader('Cost per Submission over Time')
+# fig2 = px.line(graphed_df, x='First Day of Month', y='Cost per Submission ($)')
+# st.plotly_chart(figure_or_data=fig2, use_container_width=True)
