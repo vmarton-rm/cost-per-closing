@@ -24,6 +24,8 @@ def load_session():
 
 session = load_session()
 
+# Use an interactive slider to get user input
+
 months = {
     "January": "01",
     "February": "02",
@@ -38,6 +40,10 @@ months = {
     "November": "11",
     "December": "12"
 }
+
+sql_DT = f'select * from PRODUCTION.ANALYTICAL.LEAD_COST_BREAKDOWN'
+
+data_DT = session.sql(sql_DT).to_pandas()
 st.title("Cost Per Closing")
 # Create the select boxes
 selected_year = st.number_input("Select year", min_value=2020, max_value=2030, value=pd.Timestamp.today().year, step=1)
@@ -46,53 +52,26 @@ selected_month = st.selectbox("Select month", options=list(months.keys()))
 # Convert selected month to numerical value
 selected_month_num = months[selected_month]
 
-purch_col, refi_col, renew_col = st.columns(3)
-purch = purch_col.checkbox('Purchase')
-refi = refi_col.checkbox('Refinance')
-renew = renew_col.checkbox('Renewal')
-
-sql_DT = 'select "YearMonth", "Lead Source"'
-# if purch or refi or renew:
-#     sql_DT = sql_DT + ', "Loan Purpose"'
-sql_DT = sql_DT + ', sum("Leads") as "Leads", sum("Allocations") as "Allocations", sum("Credits") as "Credits"'
-sql_DT = sql_DT + ', sum("Submissions") as "Submissions", sum("Closings") as "Closings", sum("Expected Closings") as "Expected Closings", sum("Cost") as "Cost"'
-sql_DT = sql_DT + ' from production.analytical.lead_cost_breakdown_by_purpose'
-if purch or refi or renew:
-    sql_DT = sql_DT + ' where "Loan Purpose" in ('
-    if purch:
-        sql_DT = sql_DT + "'Purchase', "
-    if refi:
-        sql_DT = sql_DT + "'Refinance', "
-    if renew:
-        sql_DT = sql_DT + "'Renewal', "
-    sql_DT = sql_DT[:-2] + ')'
-sql_DT = sql_DT + ' group by "YearMonth", "Lead Source"'
-# if purch or refi or renew:
-#     sql_DT = sql_DT + ', "Loan Purpose"'
-data_DT = session.sql(sql_DT).to_pandas()
-
 # Assuming the date column is named 'YearMonth' and has the format 'YYYY MM'
 data_DT['year'] = data_DT['YearMonth'].str[:4]
 data_DT['month'] = data_DT['YearMonth'].str[5:7]
 
-data_DT['Cost ($)'] = round(data_DT['Cost'])
-data_DT['Cost per Lead ($)'] = round(data_DT['Cost'] / data_DT['Leads'])
-data_DT['Cost per Submission ($)'] = round(data_DT['Cost'] / data_DT['Submissions'])
-data_DT['Cost per Closing ($)'] = round(data_DT['Cost'] / data_DT['Closings'])
-data_DT['Cost per Expected Closing ($)'] = round(data_DT['Cost'] / data_DT['Expected Closings'])
-data_DT['% Lead to Allocate (cohort)'] = round(data_DT['Allocations'] / data_DT['Leads'] * 100, 2)
-data_DT['% Lead to Credit (cohort)'] = round(data_DT['Credits'] / data_DT['Leads'] * 100, 2)
-data_DT['% Lead to Submit (cohort)'] = round(data_DT['Submissions'] / data_DT['Leads'] * 100, 2)
-data_DT['% Lead to Close (cohort)'] = round(data_DT['Closings'] / data_DT['Leads'] * 100, 2)
-data_DT['% Expected Lead to Close (cohort)'] = round(data_DT['Expected Closings'] / data_DT['Leads'] * 100, 2)
+data_DT['Cost ($)'] = round(data_DT['Cost ($)'])
+data_DT['Cost per Lead ($)'] = round(data_DT['Cost per Lead ($)'])
+data_DT['Cost per Submission ($)'] = round(data_DT['Cost per Submission ($)'])
+data_DT['Cost per Closing ($)'] = round(data_DT['Cost per Closing ($)'])
+data_DT['Cost per Expected Closing ($)'] = round(data_DT['Cost per Expected Closing ($)'])
+data_DT['% Lead to Allocate (cohort)'] = round(data_DT['% Lead to Allocate (cohort)'] * 100, 2)
+data_DT['% Lead to Credit (cohort)'] = round(data_DT['% Lead to Credit (cohort)'] * 100, 2)
+data_DT['% Lead to Submit (cohort)'] = round(data_DT['% Lead to Submit (cohort)'] * 100, 2)
+data_DT['% Lead to Close (cohort)'] = round(data_DT['% Lead to Close (cohort)'] * 100, 2)
+data_DT['% Expected Lead to Close (cohort)'] = round(data_DT['% Expected Lead to Close (cohort)'] * 100, 2)
 
-data_DT.drop(columns=['Cost'], inplace=True)
-data_DT = data_DT.fillna(0)
 filtered_df = data_DT[(data_DT['year'] == str(selected_year)) & (data_DT['month'] == selected_month_num)].sort_values('Leads', ascending=False)
 
 ## Automate the Bake precentage
 
-SQL_LTC_Bake = f'select * from production.analytical.LeadToClose_Bake'
+SQL_LTC_Bake = f'select * from PRODUCTION.ANALYTICAL.LeadToClose_Bake'
 SQL_LTC_Bake_DT = session.sql(SQL_LTC_Bake).to_pandas()
 
 # Create the selected_date as the first day of the selected month
@@ -197,17 +176,16 @@ st.markdown('The shaded regions represent the bake % of the cohort based on the 
 if str(selected_metric) == 'Cost per Closing ($)':
     st.markdown('Click on any line in the legend to toggle its display!')
 
-data_DT['Month'] = pd.to_datetime(data_DT['year'].str[:] + '-' + data_DT['month'].str[:]) + pd.tseries.offsets.MonthEnd(0)
-graphed_df = data_DT[data_DT['Lead Source'] == str(selected_source)].sort_values('Month')
+data_DT['Month'] = data_DT['year'].str[:] + '-' + data_DT['month'].str[:] + '-01'
+graphed_df = data_DT[data_DT['Lead Source'] == str(selected_source)]
 today = datetime.datetime.today().strftime('%Y-%m-%d')
-graphed_df.sort_values(['Month'], inplace=True)
 
 fig = go.Figure()
 fig.add_trace(
     go.Scatter(
         x=graphed_df['Month'],
         y=graphed_df[str(selected_metric)],
-        fill=None,
+        fill="tonexty",
         mode="lines",
         line_color = 'lightblue',
         name=str(selected_metric)
@@ -218,7 +196,7 @@ if(str(selected_metric) == 'Cost per Closing ($)'):
         go.Scatter(
             x=graphed_df['Month'],
             y=graphed_df['Cost per Expected Closing ($)'],
-            fill=None, #fill="tonexty"
+            fill=None,
             mode="lines",
             line_color="pink",
             name='Cost per Expected Closing ($)'
@@ -265,6 +243,8 @@ fig.update_layout(showlegend=True, legend=dict(
                                     y=0.99,
                                     xanchor="left",
                                     x=0.01))
+
+fig.data = (fig.data[1], fig.data[0])
 fig.show()
 st.plotly_chart(figure_or_data=fig, use_container_width=True)
 
