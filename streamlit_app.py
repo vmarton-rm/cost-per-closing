@@ -185,7 +185,7 @@ fig.add_trace(
     go.Scatter(
         x=graphed_df['Month'],
         y=graphed_df[str(selected_metric)],
-        fill="tonexty",
+        fill=None,
         mode="lines",
         line_color = 'lightblue',
         name=str(selected_metric)
@@ -228,7 +228,7 @@ while bake_df is not None and float(get_cumulative_percent(graph_days_since, bak
     fig.add_shape(type='rect',
                   x0 = first_day.strftime('%Y-%m-%d'), x1=last_day.strftime('%Y-%m-%d'),
                   y0=0, y1=graphed_df[str(selected_metric)].max() * 1.05,
-                  line=None, fillcolor="Red",
+                  line=None, fillcolor='red',
                   opacity=(1 - get_cumulative_percent(graph_days_since, bake_df)), layer='below')
     last_day = first_day + datetime.timedelta(days=-1)
     first_day = last_day.replace(day=1)
@@ -244,10 +244,7 @@ fig.update_layout(showlegend=True, legend=dict(
                                     xanchor="left",
                                     x=0.01))
 
-fig.data = (fig.data[1], fig.data[0])
+#fig.data = (fig.data[1], fig.data[0])
 fig.show()
 st.plotly_chart(figure_or_data=fig, use_container_width=True)
 
-# st.subheader('Cost per Submission over Time')
-# fig2 = px.line(graphed_df, x='First Day of Month', y='Cost per Submission ($)')
-# st.plotly_chart(figure_or_data=fig2, use_container_width=True)
