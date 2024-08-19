@@ -233,8 +233,7 @@ selected_metric = st.selectbox('Select metric', options=options_b, index=options
 
 st.markdown('The shaded regions represent the bake % of the cohort based on the selected metric, ' +
    'with full transparency signifying >95% bake.')
-if str(selected_metric) == 'Cost per Closing ($)':
-    st.markdown('Click on any line in the legend to toggle its display!')
+st.markdown('Click on any line in the legend to toggle its display.')
 
 data_DT['Month'] = pd.to_datetime(data_DT['year'].str[:] + '-' + data_DT['month'].str[:]) + pd.tseries.offsets.MonthEnd(0)
 graphed_df = data_DT[data_DT['Lead Source'] == str(selected_source)].sort_values('Month')
@@ -283,11 +282,11 @@ fig.add_trace(
 fig.add_trace(
     go.Scatter(
         x=graphed_df['Month'],
-        y=graphed_df[str(selected_metric)].fillna(filled[str(selected_metric)].rolling(window=2, min_periods=1).mean()).rolling(window=12).mean(),
+        y=graphed_df[str(selected_metric)].fillna(filled[str(selected_metric)].rolling(window=2, min_periods=1).mean()).rolling(window=13).mean(),
         fill=None,
         mode="lines",
         line_color="green",
-        name='Rolling Average (12 months)',
+        name='Moving Average (12 months)',
         visible='legendonly'
     )
 )
@@ -299,7 +298,7 @@ fig.add_trace(
         fill=None,
         mode="lines",
         line_color="blue",
-        name='Rolling Average (3 months)',
+        name='Moving Average (3 months)',
         visible='legendonly'
     )
 )
@@ -347,3 +346,8 @@ fig.update_layout(showlegend=True, legend=dict(
 fig.show()
 st.plotly_chart(figure_or_data=fig, use_container_width=True)
 
+st.markdown('Note that the 12- and 3-month moving average plots do not begin until ' +
+           'as many data points are available as the width of the moving window. This ' +
+           'will cause the 12-month plot, for example, to begin more than one year ' +
+           'after the first data point for lead sources which were temporarily ' +
+           'disabled within one year of their activation. See: Borrowell')
