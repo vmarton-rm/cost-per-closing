@@ -40,7 +40,7 @@ months = {
     "November": "11",
     "December": "12"
 }
-st.title("Cost Per Closing")
+
 # Create the select boxes
 selected_year = st.number_input("Select year", min_value=2020, max_value=2030, value=pd.Timestamp.today().year, step=1)
 selected_month = st.selectbox("Select month", options=list(months.keys()))
