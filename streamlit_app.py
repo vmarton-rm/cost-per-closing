@@ -7,6 +7,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 import altair as alt
 import time
+import copy
 
 
 # Write directly to the app
