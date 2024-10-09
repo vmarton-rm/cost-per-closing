@@ -9,19 +9,16 @@ import altair as alt
 import time
 import copy
 
-
 # Write directly to the app
 st.title("Cost Per Closing")
 
 # Connect to Snowflake
 conn = st.connection("snowflake")
 
-
 # @st.cache_data
 def load_session():
     session = conn.session()
     return session
-
 
 session = load_session()
 
