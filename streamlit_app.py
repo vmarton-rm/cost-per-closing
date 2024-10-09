@@ -2,7 +2,7 @@ import datetime
 import streamlit as st
 import numpy as np
 import pandas as pd
-from snowflake.snowpark.context import get_active_session
+#from snowflake.snowpark.context import get_active_session
 import plotly.express as px
 import plotly.graph_objects as go
 import altair as alt
