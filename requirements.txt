@@ -1,7 +1,7 @@
 streamlit
 numpy
 pandas
-snowflake
+snowflake-connector-python
 plotly
 altair
 datetime
