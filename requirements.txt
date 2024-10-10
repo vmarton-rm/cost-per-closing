@@ -2,6 +2,7 @@ streamlit
 numpy
 pandas
 snowflake-connector-python
+snowflake
 plotly
 altair
 datetime
