@@ -2,7 +2,7 @@ streamlit
 numpy
 pandas
 snowflake-connector-python
-snowflake-snowpark-python
+snowflake-snowpark-python==1.23.0
 snowflake
 plotly
 altair
